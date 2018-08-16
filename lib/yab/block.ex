@@ -3,7 +3,8 @@ defmodule YAB.Block do
 
   alias YAB.{
     Transaction,
-    BlockHeader
+    BlockHeader,
+    Validator
   }
 
   @type t :: %__MODULE__{
@@ -15,27 +16,39 @@ defmodule YAB.Block do
   defstruct [:header, :transactions]
 
   @difficulty Application.get_env(:yab, __MODULE__)[:difficulty]
-  @genesis_header Application.get_env(:yab, __MODULE__)[:genesis_header]
+  @origin_header struct(
+                   BlockHeader,
+                   Application.get_env(:yab, __MODULE__)[:origin_header_content]
+                 )
 
-  @spec candidate(binary(), [Transaction.t()]) :: Block.t()
-  def candidate(to_account, transactions) do
+  defmacro difficulty(), do: @difficulty
+
+  @spec candidate(Keyword.t()) :: __MODULE__.t()
+  def candidate(args) do
+    to_account = Keyword.fetch!(args, :to_account)
+    prev_block = Keyword.fetch!(args, :prev_block)
+    transactions = Keyword.fetch!(args, :transactions)
+    chain_root_hash = Keyword.fetch!(args, :chain_root_hash)
+
+    transactions_with_coinbase = [Transaction.coinbase(to_account) | transactions]
+
     %__MODULE__{
-      transactions: [Transaction.coinbase(to_account) | transactions],
+      transactions: transactions_with_coinbase,
       header: %BlockHeader{
-        previous_hash: empty_hash(),
+        previous_hash: prev_block,
         difficulty_target: @difficulty,
-        nonce: 0
-        # chain_root_hash: ,
-        # transactions_root_hash: 
+        nonce: 0,
+        chain_root_hash: chain_root_hash,
+        transactions_root_hash: Validator.hash_transactions(transactions_with_coinbase)
       }
     }
   end
 
-  @spec genesis() :: Block.t()
-  def genesis() do
+  @spec origin() :: __MODULE__.t()
+  def origin() do
     %__MODULE__{
       transactions: [],
-      header: @genesis_header
+      header: @origin_header
     }
   end
 end
