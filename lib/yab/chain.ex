@@ -5,15 +5,14 @@ defmodule YAB.Chain do
     SerializingMerkleTree
   }
 
-  @type accounts_t :: SerializingMerkleTree.t()
+  @type accounts :: SerializingMerkleTree.t()
   @type account_error_reason :: :invalid_source_account | :low_balance
 
-  @spec update_accounts(accounts_t(), [Transaction.t()]) ::
-          {:ok, accounts_t()} | {:error, account_error_reason()}
+  @spec update_accounts(accounts(), [Transaction.t()]) ::
+          {:ok, accounts()} | {:error, account_error_reason()}
   def update_accounts(initial_accounts, transactions) do
     result =
-      transactions
-      |> Enum.reduce_while(initial_accounts, fn transaction, accum_accounts ->
+      Enum.reduce_while(transactions, initial_accounts, fn transaction, accum_accounts ->
         case apply_transaction_to_accounts(accum_accounts, transaction) do
           {:ok, new_accounts} ->
             {:cont, new_accounts}
@@ -32,8 +31,8 @@ defmodule YAB.Chain do
     end
   end
 
-  @spec apply_transaction_to_accounts(accounts_t(), Transaction.t()) ::
-          {:ok, accounts_t()} | {:error, account_error_reason()}
+  @spec apply_transaction_to_accounts(accounts(), Transaction.t()) ::
+          {:ok, accounts()} | {:error, account_error_reason()}
   defp apply_transaction_to_accounts(
          accounts,
          %Transaction{
