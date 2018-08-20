@@ -6,7 +6,8 @@ defmodule YAB.Validator do
     Transaction,
     BlockHeader,
     Hasher,
-    Block
+    Block,
+    MerkleTree
   }
 
   require Block
@@ -18,10 +19,7 @@ defmodule YAB.Validator do
     if matches_difficulty_target?(hash) do
       header
     else
-      proof_of_work(%{
-        header
-        | nonce: header.nonce + 1
-      })
+      proof_of_work(%{header | nonce: nonce + 1})
     end
   end
 
@@ -40,16 +38,16 @@ defmodule YAB.Validator do
 
   def hash_transactions(transactions) do
     build_transactions_tree(transactions)
-    |> :gb_merkle_trees.root_hash()
+    |> MerkleTree.root_hash()
   end
 
   def build_transactions_tree(transactions) do
     transactions
-    |> Enum.reduce(:gb_merkle_trees.empty(), fn transaction, accum_tree ->
+    |> Enum.reduce(MerkleTree.empty(), fn transaction, accum_tree ->
       packed_transaction = Serializer.pack(transaction)
       hash = Hasher.hash(packed_transaction)
 
-      :gb_merkle_trees.enter(hash, packed_transaction, accum_tree)
+      MerkleTree.put(accum_tree, hash, packed_transaction)
     end)
   end
 

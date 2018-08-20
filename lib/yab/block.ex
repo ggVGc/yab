@@ -1,6 +1,4 @@
 defmodule YAB.Block do
-  import YAB.Util, only: [empty_hash: 0]
-
   alias YAB.{
     Transaction,
     BlockHeader,
@@ -42,6 +40,11 @@ defmodule YAB.Block do
         transactions_root_hash: Validator.hash_transactions(transactions_with_coinbase)
       }
     }
+  end
+
+  def valid?(%__MODULE__{} = block) do
+    # TODO
+    false
   end
 
   @spec origin() :: __MODULE__.t()
