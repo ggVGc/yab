@@ -2,7 +2,7 @@ defmodule YAB.ChainTest do
   use ExUnit.Case
 
   alias YAB.{
-    MerkleTree,
+    SerializingMerkleTree,
     Transaction,
     KeyGenerator,
     Chain
@@ -17,7 +17,7 @@ defmodule YAB.ChainTest do
         signature: nil
       }
 
-      assert Chain.update_accounts(MerkleTree.empty(), [transaction]) ==
+      assert Chain.update_accounts(SerializingMerkleTree.empty(), [transaction]) ==
                {:error, :invalid_source_account}
     end
 
@@ -30,11 +30,11 @@ defmodule YAB.ChainTest do
       }
 
       accounts =
-        MerkleTree.empty()
-        |> MerkleTree.put(transaction.from_account, 1)
+        SerializingMerkleTree.empty()
+        |> SerializingMerkleTree.put(transaction.from_account, 1)
 
       {:ok, new_accounts} = Chain.update_accounts(accounts, [transaction])
-      assert MerkleTree.lookup(new_accounts, transaction.to_account) == 1
+      assert SerializingMerkleTree.lookup(new_accounts, transaction.to_account) == 1
     end
 
     test "Reject insufficient funds" do
@@ -46,8 +46,8 @@ defmodule YAB.ChainTest do
       }
 
       accounts =
-        MerkleTree.empty()
-        |> MerkleTree.put(transaction.from_account, 1)
+        SerializingMerkleTree.empty()
+        |> SerializingMerkleTree.put(transaction.from_account, 1)
 
       assert Chain.update_accounts(accounts, [transaction]) == {:error, :low_balance}
     end
@@ -61,12 +61,12 @@ defmodule YAB.ChainTest do
       }
 
       accounts =
-        MerkleTree.empty()
-        |> MerkleTree.put(transaction.from_account, 2)
-        |> MerkleTree.put(transaction.to_account, 3)
+        SerializingMerkleTree.empty()
+        |> SerializingMerkleTree.put(transaction.from_account, 2)
+        |> SerializingMerkleTree.put(transaction.to_account, 3)
 
       {:ok, new_accounts} = Chain.update_accounts(accounts, [transaction])
-      assert MerkleTree.lookup(new_accounts, transaction.to_account) == 5
+      assert SerializingMerkleTree.lookup(new_accounts, transaction.to_account) == 5
     end
   end
 

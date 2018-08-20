@@ -2,10 +2,10 @@ defmodule YAB.Chain do
   alias YAB.{
     Block,
     Transaction,
-    MerkleTree
+    SerializingMerkleTree
   }
 
-  @type accounts_t :: MerkleTree.t()
+  @type accounts_t :: SerializingMerkleTree.t()
   @type account_error_reason :: :invalid_source_account | :low_balance
 
   @spec update_accounts(accounts_t(), [Transaction.t()]) ::
@@ -42,7 +42,7 @@ defmodule YAB.Chain do
            to_account: to_account
          }
        ) do
-    from_balance = MerkleTree.lookup(accounts, from_account)
+    from_balance = SerializingMerkleTree.lookup(accounts, from_account)
 
     cond do
       is_nil(from_balance) ->
@@ -54,8 +54,8 @@ defmodule YAB.Chain do
       true ->
         updated_accounts =
           accounts
-          |> MerkleTree.put(from_account, from_balance - amount)
-          |> MerkleTree.update(to_account, amount, &(&1 + amount))
+          |> SerializingMerkleTree.put(from_account, from_balance - amount)
+          |> SerializingMerkleTree.update(to_account, amount, &(&1 + amount))
 
         {:ok, updated_accounts}
     end

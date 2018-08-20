@@ -1,18 +1,23 @@
-defmodule YAB.MerkleTree do
-  @type t :: :gb_merkle_trees.tree()
-  @type key :: binary()
-  @type value :: binary()
+defmodule YAB.SerializingMerkleTree do
+  alias YAB.{
+    MerkleTree,
+    Serializer
+  }
+
+  @type t :: MerkleTree.t()
+  @type key :: term()
+  @type value :: term()
 
   @spec empty() :: __MODULE__.t()
   def empty() do
-    :gb_merkle_trees.empty()
+    MerkleTree.empty()
   end
 
   @spec lookup(__MODULE__.t(), key()) :: nil | value()
   def lookup(tree, key) do
-    case :gb_merkle_trees.lookup(key, tree) do
-      :none -> nil
-      result -> result
+    case MerkleTree.lookup(tree, Serializer.pack(key)) do
+      nil -> nil
+      result -> Serializer.unpack(result)
     end
   end
 
@@ -32,11 +37,11 @@ defmodule YAB.MerkleTree do
 
   @spec put(__MODULE__.t(), key(), value()) :: __MODULE__.t()
   def put(tree, key, value) do
-    :gb_merkle_trees.enter(key, value, tree)
+    MerkleTree.put(tree, Serializer.pack(key), Serializer.pack(value))
   end
 
   @spec root_hash(__MODULE__.t()) :: binary()
   def root_hash(tree) do
-    :gb_merkle_trees.root_hash(tree)
+    MerkleTree.root_hash(tree)
   end
 end
