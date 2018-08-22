@@ -7,13 +7,32 @@ defmodule YAB.Chain do
     Block,
     Transaction,
     MerkleTree,
-    Validator,
     BlockHeader,
     SignedTransaction
   }
 
   @type account_balances :: MerkleTree.t()
   @type account_error_reason :: :invalid_source_account | :low_balance
+
+  @spec hash_transactions([SignedTransaction.t()]) :: binary()
+  def hash_transactions([]) do
+    empty_hash()
+  end
+
+  def hash_transactions(transactions) do
+    build_transactions_tree(transactions)
+    |> MerkleTree.root_hash()
+  end
+
+  defp build_transactions_tree(transactions) do
+    transactions
+    |> Enum.reduce(MerkleTree.empty(), fn transaction, accum_tree ->
+      packed_transaction = pack(transaction)
+      hash = hash(packed_transaction)
+
+      MerkleTree.put(accum_tree, hash, packed_transaction)
+    end)
+  end
 
   @spec build_candidate(Block.t(), binary(), account_balances(), [SignedTransaction.t()]) ::
           {:ok, Block.t(), account_balances()} | {:error, block_validation_error}
@@ -33,6 +52,66 @@ defmodule YAB.Chain do
       {:error, _} = error ->
         error
     end
+  end
+
+  @type block_validation_error :: :invalid_transaction | :invalid_prev_block_hash
+
+  @spec validate_block(Block.t(), account_balances, Block.t()) ::
+          {:ok, account_balances()} | {:error, block_validation_error}
+  defp validate_block(
+         latest_block,
+         accounts,
+         %Block{
+           transactions: transactions,
+           header: %BlockHeader{
+             previous_hash: previous_hash,
+             chain_root_hash: chain_root_hash,
+             transactions_root_hash: transactions_root_hash
+           }
+         }
+       ) do
+    latest_block_hash = hash(pack(latest_block))
+
+    with [coinbase_transaction | transactions_without_coinbase] <- transactions,
+         {:ok, %{miner: miner_account, reward: reward}} <-
+           validate_coinbase_transaction(coinbase_transaction),
+         :ok <- validate_transaction_signatures(transactions_without_coinbase),
+         {:ok, new_account_balances} <-
+           update_accounts(accounts, Enum.map(transactions_without_coinbase, & &1.transaction)) do
+      cond do
+        latest_block_hash != previous_hash ->
+          {:error, :invalid_prev_block_hash}
+
+        chain_root_hash != MerkleTree.root_hash(accounts) ->
+          {:error, :invalid_chain_root_hash}
+
+        hash_transactions(transactions) != transactions_root_hash ->
+          {:error, :invalid_transactions_root_hash}
+
+        true ->
+          new_accounts_with_reward =
+            new_account_balances
+            |> add_to_account(miner_account, reward)
+
+          {:ok, new_accounts_with_reward}
+      end
+    else
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @spec validate_coinbase_transaction(SignedTransaction.t()) ::
+          {:ok, %{miner: binary(), reward: integer()}}
+  defp validate_coinbase_transaction(%SignedTransaction{
+         signature: empty_hash(),
+         transaction: %{from_account: empty_hash(), to_account: miner_account, amount: amount}
+       }) do
+    {:ok, %{miner: miner_account, reward: amount}}
+  end
+
+  defp validate_coinbase_transaction(_) do
+    {:error, :invalid_coinbase_transaction}
   end
 
   @spec update_accounts(account_balances(), [Transaction.t()]) ::
@@ -72,8 +151,8 @@ defmodule YAB.Chain do
       nil ->
         {:error, :invalid_source_account}
 
-      from_balance_bin ->
-        from_balance = unpack(from_balance_bin)
+      from_balance_binary ->
+        from_balance = unpack(from_balance_binary)
 
         if amount > from_balance do
           {:error, :low_balance}
@@ -95,68 +174,13 @@ defmodule YAB.Chain do
       accounts,
       to_account,
       pack(amount),
-      &pack(unpack(&1) + amount)
+      &update_existing_account_value(&1, amount)
     )
   end
 
-  @type block_validation_error :: :invalid_transaction | :invalid_prev_block_hash
-
-  @spec validate_block(Block.t(), account_balances, Block.t()) ::
-          {:ok, account_balances()} | {:error, block_validation_error}
-  defp validate_block(
-         latest_block,
-         accounts,
-         %Block{
-           transactions: transactions,
-           header: %BlockHeader{
-             previous_hash: previous_hash,
-             chain_root_hash: chain_root_hash,
-             transactions_root_hash: transactions_root_hash
-           }
-         }
-       ) do
-    latest_block_hash = hash(pack(latest_block))
-
-    with [coinbase_transaction | transactions_without_coinbase] <- transactions,
-         {:ok, %{miner: miner_account, reward: reward}} <-
-           validate_coinbase_transaction(coinbase_transaction),
-         :ok <- validate_transaction_signatures(transactions_without_coinbase),
-         {:ok, new_account_balances} <-
-           update_accounts(accounts, Enum.map(transactions_without_coinbase, & &1.transaction)) do
-      cond do
-        latest_block_hash != previous_hash ->
-          {:error, :invalid_prev_block_hash}
-
-        chain_root_hash != MerkleTree.root_hash(accounts) ->
-          {:error, :invalid_chain_root_hash}
-
-        Validator.hash_transactions(transactions) != transactions_root_hash ->
-          {:error, :invalid_transactions_root_hash}
-
-        true ->
-          new_accounts_with_reward =
-            new_account_balances
-            |> add_to_account(miner_account, reward)
-
-          {:ok, new_accounts_with_reward}
-      end
-    else
-      {:error, _} = error ->
-        error
-    end
-  end
-
-  @spec validate_coinbase_transaction(SignedTransaction.t()) ::
-          {:ok, %{miner: binary(), reward: integer()}}
-  defp validate_coinbase_transaction(%SignedTransaction{
-         signature: empty_hash(),
-         transaction: %{from_account: empty_hash(), to_account: miner_account, amount: amount}
-       }) do
-    {:ok, %{miner: miner_account, reward: amount}}
-  end
-
-  defp validate_coinbase_transaction(_) do
-    {:error, :invalid_coinbase_transaction}
+  defp update_existing_account_value(original_value, add_amount)
+       when is_binary(original_value) and is_integer(add_amount) do
+    pack(unpack(original_value) + add_amount)
   end
 
   @spec validate_transaction_signatures([Transaction.t()]) :: :ok | {:error, :invalid_transaction}

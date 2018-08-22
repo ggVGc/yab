@@ -16,7 +16,7 @@ defmodule Mix.Tasks.GenOriginHeader do
         chain_root_hash: empty_hash()
       )
 
-    YAB.Validator.proof_of_work(candidate.header)
+    YAB.POW.work(candidate.header)
     |> IO.inspect()
   end
 end

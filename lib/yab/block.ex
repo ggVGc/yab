@@ -2,7 +2,7 @@ defmodule YAB.Block do
   alias YAB.{
     SignedTransaction,
     BlockHeader,
-    Validator
+    Chain
   }
 
   @type t :: %__MODULE__{
@@ -37,7 +37,7 @@ defmodule YAB.Block do
         difficulty_target: @difficulty,
         nonce: 0,
         chain_root_hash: chain_root_hash,
-        transactions_root_hash: Validator.hash_transactions(transactions_with_coinbase)
+        transactions_root_hash: Chain.hash_transactions(transactions_with_coinbase)
       }
     }
   end
