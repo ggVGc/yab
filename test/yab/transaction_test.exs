@@ -3,6 +3,7 @@ defmodule YAB.TransactionTest do
 
   alias YAB.{
     Transaction,
+    SignedTransaction,
     Serializer,
     Signer
   }
@@ -16,7 +17,7 @@ defmodule YAB.TransactionTest do
       amount: 1
     }
 
-    signed_transaction = Transaction.sign(transaction, from_keys.private)
+    signed_transaction = SignedTransaction.sign(transaction, from_keys.private)
 
     assert Signer.verify(
              Serializer.pack(transaction),

@@ -4,7 +4,7 @@ use Mix.Config
 # config :yab, YAB.Signer,
 #   private_key: <<188, 126, 81, 175, 35, 201, 159, 7, 242, 8, 199, 250, 40, 230, 72, 230>>
 
-config :yab, YAB.Transaction, coinbase_amount: 1729
+config :yab, YAB.SignedTransaction, coinbase_amount: 1729
 
 config :yab, YAB.Block,
   difficulty: 2,

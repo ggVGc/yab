@@ -29,7 +29,7 @@ defmodule YAB.ChainTest do
         to_account: new_keys().public,
         amount: 1
       }
-      |> Transaction.sign(from_keys.private)
+      |> SignedTransaction.sign(from_keys.private)
 
     assert execute_transaction(transaction) == {:error, :invalid_source_account}
   end
@@ -47,7 +47,7 @@ defmodule YAB.ChainTest do
           to_account: to_account,
           amount: 1
         }
-        |> Transaction.sign(from_keys.private)
+        |> SignedTransaction.sign(from_keys.private)
       )
 
     assert unpack(MerkleTree.lookup(new_accounts, to_account)) == 1
@@ -65,7 +65,7 @@ defmodule YAB.ChainTest do
           to_account: new_keys().public,
           amount: 2
         }
-        |> Transaction.sign(from_keys.private)
+        |> SignedTransaction.sign(from_keys.private)
       )
 
     assert result == {:error, :low_balance}
@@ -88,13 +88,13 @@ defmodule YAB.ChainTest do
           to_account: to_account,
           amount: 2
         }
-        |> Transaction.sign(from_keys.private)
+        |> SignedTransaction.sign(from_keys.private)
       )
 
     assert unpack(MerkleTree.lookup(new_accounts, to_account)) == 5
   end
 
-  @coinbase_amount Application.get_env(:yab, YAB.Transaction)[:coinbase_amount]
+  @coinbase_amount Application.get_env(:yab, YAB.SignedTransaction)[:coinbase_amount]
 
   test "Miner receives coinbase" do
     from_keys = new_keys()
@@ -108,7 +108,7 @@ defmodule YAB.ChainTest do
           to_account: new_keys().public,
           amount: 1
         }
-        |> Transaction.sign(from_keys.private)
+        |> SignedTransaction.sign(from_keys.private)
       )
 
     assert unpack(MerkleTree.lookup(new_accounts, @miner_account)) == @coinbase_amount
