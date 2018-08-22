@@ -1,77 +1,120 @@
 defmodule YAB.ChainTest do
-  use ExUnit.Case
+  import YAB.Serializer, only: [pack: 1, unpack: 1]
+
+  use YAB.TestCase
 
   alias YAB.{
-    SerializingMerkleTree,
+    MerkleTree,
     Transaction,
-    KeyGenerator,
-    Chain
+    Block,
+    Chain,
+    SignedTransaction
   }
 
-  describe "update_accounts/2" do
-    test "Reject invalid source account" do
-      transaction = %Transaction{
-        from_account: new_pub_key(),
-        to_account: new_pub_key(),
-        amount: 1,
-        signature: nil
-      }
-
-      assert Chain.update_accounts(SerializingMerkleTree.empty(), [transaction]) ==
-               {:error, :invalid_source_account}
-    end
-
-    test "Transfer to new account" do
-      transaction = %Transaction{
-        from_account: new_pub_key(),
-        to_account: new_pub_key(),
-        amount: 1,
-        signature: nil
-      }
-
-      accounts =
-        SerializingMerkleTree.empty()
-        |> SerializingMerkleTree.put(transaction.from_account, 1)
-
-      {:ok, new_accounts} = Chain.update_accounts(accounts, [transaction])
-      assert SerializingMerkleTree.lookup(new_accounts, transaction.to_account) == 1
-    end
-
-    test "Reject insufficient funds" do
-      transaction = %Transaction{
-        from_account: new_pub_key(),
-        to_account: new_pub_key(),
-        amount: 2,
-        signature: nil
-      }
-
-      accounts =
-        SerializingMerkleTree.empty()
-        |> SerializingMerkleTree.put(transaction.from_account, 1)
-
-      assert Chain.update_accounts(accounts, [transaction]) == {:error, :low_balance}
-    end
-
-    test "Transfer to existing account", %{} do
-      transaction = %Transaction{
-        from_account: new_pub_key(),
-        to_account: new_pub_key(),
-        amount: 2,
-        signature: nil
-      }
-
-      accounts =
-        SerializingMerkleTree.empty()
-        |> SerializingMerkleTree.put(transaction.from_account, 2)
-        |> SerializingMerkleTree.put(transaction.to_account, 3)
-
-      {:ok, new_accounts} = Chain.update_accounts(accounts, [transaction])
-      assert SerializingMerkleTree.lookup(new_accounts, transaction.to_account) == 5
-    end
+  defp execute_transaction(accounts \\ MerkleTree.empty(), %SignedTransaction{} = transaction) do
+    Chain.build_candidate(
+      Block.origin(),
+      @miner_account,
+      accounts,
+      [transaction]
+    )
   end
 
-  defp new_pub_key() do
-    KeyGenerator.gen_private()
-    |> KeyGenerator.public_from_private()
+  test "Reject invalid source account" do
+    from_keys = new_keys()
+
+    transaction =
+      %Transaction{
+        from_account: from_keys.public,
+        to_account: new_keys().public,
+        amount: 1
+      }
+      |> Transaction.sign(from_keys.private)
+
+    assert execute_transaction(transaction) == {:error, :invalid_source_account}
+  end
+
+  test "Transfer to new account" do
+    from_keys = new_keys()
+    to_account = new_keys().public
+    initial_accounts = MerkleTree.put(MerkleTree.empty(), from_keys.public, pack(1))
+
+    {:ok, _, new_accounts} =
+      execute_transaction(
+        initial_accounts,
+        %Transaction{
+          from_account: from_keys.public,
+          to_account: to_account,
+          amount: 1
+        }
+        |> Transaction.sign(from_keys.private)
+      )
+
+    assert unpack(MerkleTree.lookup(new_accounts, to_account)) == 1
+  end
+
+  test "Reject insufficient funds" do
+    from_keys = new_keys()
+    initial_accounts = MerkleTree.put(MerkleTree.empty(), from_keys.public, pack(1))
+
+    result =
+      execute_transaction(
+        initial_accounts,
+        %Transaction{
+          from_account: from_keys.public,
+          to_account: new_keys().public,
+          amount: 2
+        }
+        |> Transaction.sign(from_keys.private)
+      )
+
+    assert result == {:error, :low_balance}
+  end
+
+  test "Transfer to existing account", %{} do
+    from_keys = new_keys()
+    to_account = new_keys().public
+
+    initial_accounts =
+      MerkleTree.empty()
+      |> MerkleTree.put(from_keys.public, pack(2))
+      |> MerkleTree.put(to_account, pack(3))
+
+    {:ok, _, new_accounts} =
+      execute_transaction(
+        initial_accounts,
+        %Transaction{
+          from_account: from_keys.public,
+          to_account: to_account,
+          amount: 2
+        }
+        |> Transaction.sign(from_keys.private)
+      )
+
+    assert unpack(MerkleTree.lookup(new_accounts, to_account)) == 5
+  end
+
+  @coinbase_amount Application.get_env(:yab, YAB.Transaction)[:coinbase_amount]
+
+  test "Miner receives coinbase" do
+    from_keys = new_keys()
+    initial_accounts = MerkleTree.put(MerkleTree.empty(), from_keys.public, pack(1))
+
+    {:ok, _, new_accounts} =
+      execute_transaction(
+        initial_accounts,
+        %Transaction{
+          from_account: from_keys.public,
+          to_account: new_keys().public,
+          amount: 1
+        }
+        |> Transaction.sign(from_keys.private)
+      )
+
+    assert unpack(MerkleTree.lookup(new_accounts, @miner_account)) == @coinbase_amount
+  end
+
+  test "Reject invalid coinbase transaction", %{} do
+    assert "TODO" == ""
   end
 end

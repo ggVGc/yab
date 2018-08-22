@@ -10,8 +10,8 @@ defmodule Mix.Tasks.GenOriginHeader do
 
     candidate =
       YAB.Block.candidate(
-        to_account: public_key,
-        prev_block: empty_hash(),
+        miner_account: public_key,
+        prev_block_hash: empty_hash(),
         transactions: [],
         chain_root_hash: empty_hash()
       )

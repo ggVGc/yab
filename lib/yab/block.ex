@@ -1,13 +1,13 @@
 defmodule YAB.Block do
   alias YAB.{
-    Transaction,
+    SignedTransaction,
     BlockHeader,
     Validator
   }
 
   @type t :: %__MODULE__{
           header: BlockHeader.t(),
-          transactions: [Transaction.t()]
+          transactions: [SignedTransaction.t()]
         }
 
   @enforce_keys [:header, :transactions]
@@ -23,28 +23,23 @@ defmodule YAB.Block do
 
   @spec candidate(Keyword.t()) :: __MODULE__.t()
   def candidate(args) do
-    to_account = Keyword.fetch!(args, :to_account)
-    prev_block = Keyword.fetch!(args, :prev_block)
+    miner_account = Keyword.fetch!(args, :miner_account)
+    prev_block_hash = Keyword.fetch!(args, :prev_block_hash)
     transactions = Keyword.fetch!(args, :transactions)
     chain_root_hash = Keyword.fetch!(args, :chain_root_hash)
 
-    transactions_with_coinbase = [Transaction.coinbase(to_account) | transactions]
+    transactions_with_coinbase = [SignedTransaction.coinbase(miner_account) | transactions]
 
     %__MODULE__{
       transactions: transactions_with_coinbase,
       header: %BlockHeader{
-        previous_hash: prev_block,
+        previous_hash: prev_block_hash,
         difficulty_target: @difficulty,
         nonce: 0,
         chain_root_hash: chain_root_hash,
         transactions_root_hash: Validator.hash_transactions(transactions_with_coinbase)
       }
     }
-  end
-
-  def valid?(%__MODULE__{} = block) do
-    # TODO
-    false
   end
 
   @spec origin() :: __MODULE__.t()

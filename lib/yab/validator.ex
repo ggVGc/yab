@@ -3,7 +3,7 @@ defmodule YAB.Validator do
 
   alias YAB.{
     Serializer,
-    Transaction,
+    SignedTransaction,
     BlockHeader,
     Hasher,
     Block,
@@ -31,7 +31,7 @@ defmodule YAB.Validator do
     leading_zeroes == @target_leading_zeroes
   end
 
-  @spec hash_transactions([YAB.Transaction.t()]) :: binary()
+  @spec hash_transactions([SignedTransaction.t()]) :: binary()
   def hash_transactions([]) do
     empty_hash()
   end
@@ -41,7 +41,7 @@ defmodule YAB.Validator do
     |> MerkleTree.root_hash()
   end
 
-  def build_transactions_tree(transactions) do
+  defp build_transactions_tree(transactions) do
     transactions
     |> Enum.reduce(MerkleTree.empty(), fn transaction, accum_tree ->
       packed_transaction = Serializer.pack(transaction)
@@ -49,11 +49,5 @@ defmodule YAB.Validator do
 
       MerkleTree.put(accum_tree, hash, packed_transaction)
     end)
-  end
-
-  @spec validate_transaction(Transaction.t()) :: boolean()
-  defp validate_transaction(%Transaction{} = transaction) do
-    # TODO
-    false
   end
 end

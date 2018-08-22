@@ -1,8 +1,8 @@
 use Mix.Config
 
 # TODO: private_key should be part of node, not of blockchain lib
-config :yab, YAB.Signer,
-  private_key: <<188, 126, 81, 175, 35, 201, 159, 7, 242, 8, 199, 250, 40, 230, 72, 230>>
+# config :yab, YAB.Signer,
+#   private_key: <<188, 126, 81, 175, 35, 201, 159, 7, 242, 8, 199, 250, 40, 230, 72, 230>>
 
 config :yab, YAB.Transaction, coinbase_amount: 1729
 

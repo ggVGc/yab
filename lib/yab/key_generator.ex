@@ -8,6 +8,7 @@ defmodule YAB.KeyGenerator do
 
   @spec public_from_private(binary()) :: binary()
   def public_from_private(private_key) do
-    :crypto.generate_key(:ecdh, :secp256k1, private_key)
+    {public_key, _} = :crypto.generate_key(:ecdh, :secp256k1, private_key)
+    public_key
   end
 end
