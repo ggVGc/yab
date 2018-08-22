@@ -1,19 +1,17 @@
+# This file is responsible for configuring your application
+# and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
-# TODO: private_key should be part of node, not of blockchain lib
-# config :yab, YAB.Signer,
-#   private_key: <<188, 126, 81, 175, 35, 201, 159, 7, 242, 8, 199, 250, 40, 230, 72, 230>>
+# By default, the umbrella project as well as each child
+# application will require this configuration file, ensuring
+# they all use the same configuration. While one could
+# configure all applications here, we prefer to delegate
+# back to each application for organization purposes.
+import_config "../apps/*/config/config.exs"
 
-config :yab, YAB.SignedTransaction, coinbase_amount: 1729
-
-config :yab, YAB.Block,
-  difficulty: 2,
-  origin_header_content: %{
-    chain_root_hash: <<0::256>>,
-    difficulty_target: 2,
-    nonce: 16100,
-    previous_hash: <<0::256>>,
-    transactions_root_hash:
-      <<136, 28, 17, 144, 203, 238, 194, 195, 79, 191, 37, 85, 146, 236, 117, 99, 20, 171, 141,
-        195, 8, 216, 94, 164, 221, 11, 219, 252, 27, 76, 241, 156>>
-  }
+# Sample configuration (overrides the imported configuration above):
+#
+#     config :logger, :console,
+#       level: :info,
+#       format: "$date $time [$level] $metadata$message\n",
+#       metadata: [:user_id]

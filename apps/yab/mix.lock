@@ -1,0 +1,4 @@
+%{
+  "gb_merkle_trees": {:git, "https://github.com/aeternity/gb_merkle_trees.git", "30524cf6d26f00993ed140bcde885e184150b467", [tag: "v0.2.0"]},
+  "triq": {:hex, :triq, "1.2.0", "3fbf99c16671f084b558f7e799e38d92835d67dcc012fb40d418330ea1053455", [:rebar3], [], "hexpm"},
+}
