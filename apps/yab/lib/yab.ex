@@ -1,2 +1,0 @@
-defmodule YAB do
-end
