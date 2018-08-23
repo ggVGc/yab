@@ -9,9 +9,7 @@ defmodule Miner.Worker do
     Chain,
     Block,
     KeyGenerator,
-    POW,
-    MerkleTree,
-    Serializer
+    POW
   }
 
   require Logger
