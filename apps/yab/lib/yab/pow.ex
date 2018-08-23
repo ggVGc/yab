@@ -8,22 +8,19 @@ defmodule YAB.POW do
 
   require Block
 
+  @target_difficulty_value :binary.list_to_bin(
+                             for(_ <- 1..Block.difficulty(), do: 0) ++
+                               for(_ <- 1..(32 - Block.difficulty()), do: 255)
+                           )
+
   @spec work(BlockHeader.t()) :: BlockHeader.t()
   def work(%BlockHeader{nonce: nonce} = header) do
     hash = Hasher.hash(Serializer.pack(header))
 
-    if matches_difficulty_target?(hash) do
+    if hash <= @target_difficulty_value do
       header
     else
       work(%{header | nonce: nonce + 1})
     end
-  end
-
-  @target_leading_zeroes <<0::size(Block.difficulty())-unit(8)>>
-
-  @spec matches_difficulty_target?(binary()) :: boolean()
-  defp matches_difficulty_target?(hash) do
-    <<leading_zeroes::binary-size(Block.difficulty()), _::binary>> = hash
-    leading_zeroes == @target_leading_zeroes
   end
 end
