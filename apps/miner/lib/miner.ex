@@ -15,7 +15,8 @@ defmodule Miner do
 
     children = [
       worker(Pool, []),
-      worker(Worker, [])
+      worker(Worker, []),
+      {Task.Supervisor, name: Miner.TaskSupervisor}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__.Supervisor)

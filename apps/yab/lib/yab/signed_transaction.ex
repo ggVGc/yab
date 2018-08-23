@@ -15,14 +15,14 @@ defmodule YAB.SignedTransaction do
   @enforce_keys [:transaction, :signature]
   defstruct [:transaction, :signature]
 
-  @coinbase_amount Application.get_env(:yab, __MODULE__)[:coinbase_amount]
+  defmacro coinbase_amount, do: Application.get_env(:yab, __MODULE__)[:coinbase_amount]
 
   @spec coinbase(binary()) :: __MODULE__.t()
   def coinbase(to_account) do
     %__MODULE__{
       transaction: %Transaction{
         to_account: to_account,
-        amount: @coinbase_amount,
+        amount: coinbase_amount(),
         from_account: empty_hash()
       },
       signature: empty_hash()

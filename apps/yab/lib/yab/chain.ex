@@ -11,6 +11,8 @@ defmodule YAB.Chain do
     SignedTransaction
   }
 
+  require SignedTransaction
+
   @type account_balances :: MerkleTree.t()
   @type account_error_reason :: :invalid_source_account | :low_balance
 
@@ -71,18 +73,18 @@ defmodule YAB.Chain do
 
   @spec validate_block(Block.t(), account_balances, Block.t()) ::
           {:ok, account_balances()} | {:error, block_validation_error}
-  defp validate_block(
-         latest_block,
-         accounts,
-         %Block{
-           transactions: transactions,
-           header: %BlockHeader{
-             previous_hash: previous_hash,
-             chain_root_hash: chain_root_hash,
-             transactions_root_hash: transactions_root_hash
-           }
-         }
-       ) do
+  def validate_block(
+        latest_block,
+        accounts,
+        %Block{
+          transactions: transactions,
+          header: %BlockHeader{
+            previous_hash: previous_hash,
+            chain_root_hash: chain_root_hash,
+            transactions_root_hash: transactions_root_hash
+          }
+        }
+      ) do
     latest_block_hash = hash(pack(latest_block))
 
     with [coinbase_transaction | transactions_without_coinbase] <- transactions,
@@ -118,9 +120,13 @@ defmodule YAB.Chain do
           {:ok, %{miner: binary(), reward: integer()}}
   defp validate_coinbase_transaction(%SignedTransaction{
          signature: empty_hash(),
-         transaction: %{from_account: empty_hash(), to_account: miner_account, amount: amount}
+         transaction: %{
+           from_account: empty_hash(),
+           to_account: miner_account,
+           amount: SignedTransaction.coinbase_amount()
+         }
        }) do
-    {:ok, %{miner: miner_account, reward: amount}}
+    {:ok, %{miner: miner_account, reward: SignedTransaction.coinbase_amount()}}
   end
 
   defp validate_coinbase_transaction(_) do
