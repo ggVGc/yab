@@ -18,6 +18,7 @@ defmodule Miner.Worker do
 
   @max_block_try_depth 2
   @initial_delay 1000
+  @default_root_node_name Application.get_env(:miner, __MODULE__)[:default_root_node_name]
 
   defmodule State do
     @type t :: %__MODULE__{
@@ -45,8 +46,27 @@ defmodule Miner.Worker do
   end
 
   def init(state) do
-    schedule_mining()
+    Process.send_after(__MODULE__, :default_join, 500)
     {:ok, state}
+  end
+
+  def join_network(any_active_node_name) do
+    Peer.announce_self(any_active_node_name)
+    sync()
+  end
+
+  def handle_info(:default_join, state) do
+    # Bit ugly, but works for now
+    {:ok, host} = :inet.gethostname()
+    node_name = String.to_atom("#{@default_root_node_name}@#{host}")
+
+    if Node.self() == node_name or Node.ping(node_name) == :pang do
+      schedule_mining()
+    else
+      join_network(node_name)
+    end
+
+    {:noreply, state}
   end
 
   def status() do
@@ -218,6 +238,7 @@ defmodule Miner.Worker do
 
   def handle_cast(:sync, %State{} = state) do
     Logger.debug("Syncing")
+
     kill_mining_task_if_active(state)
 
     origin_block = Block.origin()
