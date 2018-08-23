@@ -1,4 +1,2 @@
 # Yab
 
-**TODO: Add description**
-
