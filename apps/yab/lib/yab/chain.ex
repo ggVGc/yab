@@ -14,6 +14,19 @@ defmodule YAB.Chain do
   @type account_balances :: MerkleTree.t()
   @type account_error_reason :: :invalid_source_account | :low_balance
 
+  defmacro empty_accounts, do: MerkleTree.empty()
+
+  @spec get_account_balance(account_balances(), binary()) :: integer()
+  def get_account_balance(accounts, public_key) do
+    case MerkleTree.lookup(accounts, public_key) do
+      nil ->
+        0
+
+      value_binary ->
+        unpack(value_binary)
+    end
+  end
+
   @spec hash_transactions([SignedTransaction.t()]) :: binary()
   def hash_transactions([]) do
     empty_hash()

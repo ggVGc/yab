@@ -39,9 +39,4 @@ defmodule YAB.MerkleTree do
   def root_hash(tree) do
     :gb_merkle_trees.root_hash(tree)
   end
-
-  @spec balance(__MODULE__.t()) :: __MODULE__.t()
-  def balance(tree) do
-    :gb_merkle_trees.balance(tree)
-  end
 end
