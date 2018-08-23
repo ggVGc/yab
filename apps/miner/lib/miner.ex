@@ -5,7 +5,8 @@ defmodule Miner do
 
   alias Miner.{
     Pool,
-    Worker
+    Worker,
+    NodeList
   }
 
   require Logger
@@ -16,6 +17,7 @@ defmodule Miner do
     children = [
       worker(Pool, []),
       worker(Worker, []),
+      worker(NodeList, []),
       {Task.Supervisor, name: Miner.TaskSupervisor}
     ]
 
