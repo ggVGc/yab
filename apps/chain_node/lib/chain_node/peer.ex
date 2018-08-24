@@ -1,5 +1,5 @@
-defmodule Miner.Peer do
-  alias Miner.{
+defmodule ChainNode.Peer do
+  alias ChainNode.{
     NodeList,
     Worker
   }

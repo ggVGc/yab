@@ -1,4 +1,4 @@
-defmodule Miner.Pool do
+defmodule ChainNode.TransactionPool do
   use Agent
 
   alias YAB.{

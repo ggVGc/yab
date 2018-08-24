@@ -1,9 +1,9 @@
-defmodule Miner.MixProject do
+defmodule ChainNode.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :miner,
+      app: :chain_node,
       version: "0.1.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
@@ -15,19 +15,15 @@ defmodule Miner.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
-      mod: {Miner, []}
+      extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:yab, in_umbrella: true},
-      {:chain_node, in_umbrella: true}
+      {:yab, in_umbrella: true}
     ]
   end
 end

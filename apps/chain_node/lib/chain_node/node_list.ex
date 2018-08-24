@@ -1,7 +1,7 @@
-defmodule Miner.NodeList do
+defmodule ChainNode.NodeList do
   use Agent
 
-  alias Miner.{
+  alias ChainNode.{
     Peer
   }
 

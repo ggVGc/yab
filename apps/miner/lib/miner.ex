@@ -4,9 +4,7 @@ defmodule Miner do
   import Supervisor.Spec
 
   alias Miner.{
-    Pool,
-    Worker,
-    NodeList
+    Worker
   }
 
   require Logger
@@ -15,9 +13,8 @@ defmodule Miner do
     Logger.info("Starting Miner")
 
     children = [
-      worker(Pool, []),
+      supervisor(ChainNode, [Miner.Worker]),
       worker(Worker, []),
-      worker(NodeList, []),
       {Task.Supervisor, name: Miner.TaskSupervisor}
     ]
 
