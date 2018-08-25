@@ -23,7 +23,7 @@ defmodule ChainNode.Peer do
 
   def broadcast_new_block(%Block{} = block) do
     Logger.debug("(#{Node.self()}) Broadcasting new block")
-    broadcast(Worker, :add_external_block, [block])
+    broadcast(Worker, :add_block, [block])
   end
 
   def broadcast_added_node(new_node_name) do

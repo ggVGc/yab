@@ -13,14 +13,15 @@ defmodule ChainNode.Worker do
 
   require Logger
   require Chain
+  require Block
 
   @max_block_try_depth 2
-  @default_root_node_name Application.get_env(:chain_node, __MODULE__)[:default_root_node_name]
+  @default_peer Application.get_env(:chain_node, __MODULE__)[:default_peer]
 
   defmodule Listener do
     @type t :: module()
     @callback on_chain_joined() :: no_return()
-    @callback on_new_external_block() :: no_return()
+    @callback on_new_block() :: no_return()
   end
 
   defmodule State do
@@ -78,8 +79,8 @@ defmodule ChainNode.Worker do
     GenServer.cast(__MODULE__, :sync)
   end
 
-  def add_external_block(%Block{} = new_block) do
-    GenServer.cast(__MODULE__, {:add_external_block, new_block})
+  def add_block(%Block{} = new_block) do
+    GenServer.cast(__MODULE__, {:add_block, new_block})
   end
 
   def handle_call(:get_state, _, state) do
@@ -94,26 +95,10 @@ defmodule ChainNode.Worker do
     {:reply, blocks, state}
   end
 
-  def handle_call(
-        {:add_mined_block, mined_block, updated_accounts},
-        _,
-        %State{blocks: blocks} = state
-      ) do
-    new_state = %State{
-      state
-      | accounts: updated_accounts,
-        blocks: [mined_block | blocks]
-    }
-
-    Peer.broadcast_new_block(mined_block)
-
-    {:reply, :ok, new_state}
-  end
-
   # Quite ugly, but works for now
   def handle_info(:default_join, %State{listener: listener} = state) do
     {:ok, host} = :inet.gethostname()
-    node_name = String.to_atom("#{@default_root_node_name}@#{host}")
+    node_name = String.to_atom("#{@default_peer}@#{host}")
 
     if Node.self() == :nonode@nohost do
       Node.start(node_name, :shortnames)
@@ -121,11 +106,15 @@ defmodule ChainNode.Worker do
 
     cond do
       Node.self() == node_name ->
-        Logger.info("Default root node started")
+        Logger.info("Default peer started")
         listener.on_chain_joined()
 
       Node.ping(node_name) == :pang ->
-        Logger.error("Default root node not available. Try joining network manually.")
+        Logger.error(
+          "Default peer not available.\n" <>
+            "Start default peer with `iex --sname #{@default_peer} -S mix`,\n" <>
+            "or manually announce to a known peer using Peer.announce_self/1."
+        )
 
       true ->
         join_network(node_name)
@@ -147,35 +136,37 @@ defmodule ChainNode.Worker do
   def handle_cast(:sync, %State{} = state) do
     Logger.debug("Syncing")
 
-    origin_block = Block.origin()
-
     blocks = Peer.get_blocks()
+    Logger.debug("Received #{length(blocks)} blocks. Validating")
 
     # Not the most future proof implementation...
-    [^origin_block | rest_blocks] = Enum.reverse(blocks)
+    [Block.origin() | rest_blocks] = Enum.reverse(blocks)
 
-    Logger.debug("Received #{length(blocks) + 1} blocks. Validating")
+    synced_state =
+      Enum.reduce(rest_blocks, reset_state(state), fn block, state ->
+        {:ok, new_account_balances, new_blocks} = try_add_block(block, state)
 
-    {accounts, _} =
-      Enum.reduce(rest_blocks, {Chain.empty_accounts(), origin_block}, fn block,
-                                                                          {accounts, latest_block} ->
-        {:ok, accounts} = Chain.validate_block(latest_block, accounts, block)
-        {accounts, block}
+        %State{
+          state
+          | blocks: new_blocks,
+            accounts: new_account_balances
+        }
       end)
 
     Logger.info("Blocks valid. Sync complete!")
-
-    {:noreply,
-     %State{
-       state
-       | blocks: blocks,
-         accounts: accounts,
-         public_key: state.public_key
-     }}
+    {:noreply, synced_state}
   end
 
-  def handle_cast({:add_external_block, %Block{} = new_block}, %State{listener: listener} = state) do
-    Logger.info("Received external block")
+  defp reset_state(%State{} = state) do
+    %State{
+      state
+      | blocks: [Block.origin()],
+        accounts: Chain.empty_accounts()
+    }
+  end
+
+  def handle_cast({:add_block, %Block{} = new_block}, %State{listener: listener} = state) do
+    Logger.info("Adding new block")
 
     case try_add_block(new_block, state) do
       {:ok, new_account_balances, new_blocks} ->
@@ -185,8 +176,12 @@ defmodule ChainNode.Worker do
             blocks: new_blocks
         }
 
-        listener.on_new_external_block()
+        listener.on_new_block()
+        Peer.broadcast_new_block(new_block)
         {:noreply, new_state}
+
+      {:error, :block_already_added} ->
+        {:noreply, state}
 
       {:error, reason} ->
         Logger.info("Received invalid(#{reason}) block: #{inspect(new_block.header)}")
@@ -194,11 +189,13 @@ defmodule ChainNode.Worker do
     end
   end
 
-  def add_mined_block(mined_block, updated_accounts) do
-    GenServer.call(__MODULE__, {:add_mined_block, mined_block, updated_accounts})
-  end
-
   defp try_add_block(new_block, state), do: try_add_block(0, new_block, state)
+
+  # We could check further down, but it's a very unexpected case, and if the chain
+  # has grown much longer, the new block will be rejected anyway
+  defp try_add_block(_, new_block, %State{blocks: [latest_block | _]})
+       when new_block == latest_block,
+       do: {:error, :block_already_added}
 
   defp try_add_block(
          tries,
@@ -206,8 +203,18 @@ defmodule ChainNode.Worker do
          %State{accounts: accounts, blocks: [latest_block | rest_blocks] = blocks} = state
        ) do
     case Chain.validate_block(latest_block, accounts, new_block) do
-      {:ok, new_account_balances} ->
-        {:ok, new_account_balances, [new_block | blocks]}
+      {:ok, ^new_block, []} ->
+        [coinbase_transaction | transactions] = new_block.transactions
+
+        {updated_accounts, _, []} =
+          accounts
+          |> Chain.apply_coinbase_transaction(coinbase_transaction)
+          |> Chain.apply_transactions(transactions)
+
+        {:ok, updated_accounts, [new_block | blocks]}
+
+      {:ok, _, [_]} ->
+        {:error, :new_block_contains_invalid_transactions}
 
       {:error, _} = error ->
         if tries >= @max_block_try_depth or rest_blocks == [] do

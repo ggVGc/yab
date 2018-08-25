@@ -42,11 +42,21 @@ defmodule YAB.Block do
     }
   end
 
-  @spec origin() :: __MODULE__.t()
-  def origin() do
+  def set_transactions(%__MODULE__{header: header} = block, transactions) do
     %__MODULE__{
-      transactions: [],
-      header: @origin_header
+      transactions: transactions,
+      header: %BlockHeader{
+        header
+        | transactions_root_hash: Chain.hash_transactions(transactions)
+      }
     }
+  end
+
+  defmacro origin() do
+    origin_block = Macro.escape(%__MODULE__{transactions: [], header: @origin_header})
+
+    quote do
+      unquote(origin_block)
+    end
   end
 end
