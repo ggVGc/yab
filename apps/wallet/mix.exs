@@ -20,7 +20,6 @@ defmodule Wallet.MixProject do
     [
       extra_applications: [:logger],
       mod: {Wallet, {}}
-
     ]
   end
 
