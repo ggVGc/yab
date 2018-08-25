@@ -11,4 +11,7 @@ Proof of concept blockchain network.
 * No real identity for transasctions(no timestamp), so one transasction could be incorrecetly applied multiple times
 
 
+[![asciicast](https://asciinema.org/a/aGZYUAiBlcx8YvmXC3sijhmTm.png)](https://asciinema.org/a/aGZYUAiBlcx8YvmXC3sijhmTm)
+
+
 
