@@ -2,13 +2,16 @@ defmodule ChainNode.Worker do
   use GenServer
 
   alias ChainNode.{
-    Peer
+    Peer,
+    TransactionPool
   }
 
   alias YAB.{
     Chain,
     Block,
-    KeyGenerator
+    KeyGenerator,
+    Serializer,
+    MerkleTree
   }
 
   require Logger
@@ -36,13 +39,23 @@ defmodule ChainNode.Worker do
     defstruct [:accounts, :blocks, :public_key, :listener]
   end
 
-  def start_link(listener) do
-    private_key = KeyGenerator.gen_private()
+  def start_link(opts) do
+    listener = Keyword.fetch!(opts, :listener)
+
+    public_key =
+      case Keyword.get(opts, :public_key) do
+        nil ->
+          private_key = KeyGenerator.gen_private()
+          KeyGenerator.public_from_private(private_key)
+
+        key ->
+          key
+      end
 
     state = %State{
       accounts: Chain.empty_accounts(),
       blocks: [Block.origin()],
-      public_key: KeyGenerator.public_from_private(private_key),
+      public_key: public_key,
       listener: listener
     }
 
@@ -63,8 +76,8 @@ defmodule ChainNode.Worker do
     GenServer.call(__MODULE__, :get_state)
   end
 
-  def status() do
-    GenServer.cast(__MODULE__, :status)
+  def get_account_balances() do
+    GenServer.call(__MODULE__, :get_account_balances)
   end
 
   def set_account(new_public_key) when is_binary(new_public_key) do
@@ -85,6 +98,17 @@ defmodule ChainNode.Worker do
 
   def handle_call(:get_state, _, state) do
     {:reply, state, state}
+  end
+
+  def handle_call(:get_account_balances, _, %State{accounts: accounts} = state) do
+    result =
+      accounts
+      |> MerkleTree.to_list()
+      |> Enum.map(fn {key, value} ->
+        {key, Serializer.unpack(value)}
+      end)
+
+    {:reply, result, state}
   end
 
   def handle_call({:set_account, new_public_key}, _, state) do
@@ -124,13 +148,12 @@ defmodule ChainNode.Worker do
     {:noreply, state}
   end
 
-  def handle_cast(:status, %State{accounts: accounts, public_key: public_key} = state) do
-    Chain.get_account_balance(accounts, public_key)
-    |> IO.inspect(label: "balance")
-
-    public_key |> IO.inspect(label: "account", limit: :infinity)
-
-    {:noreply, state}
+  defp reset_state(%State{} = state) do
+    %State{
+      state
+      | blocks: [Block.origin()],
+        accounts: Chain.empty_accounts()
+    }
   end
 
   def handle_cast(:sync, %State{} = state) do
@@ -157,14 +180,6 @@ defmodule ChainNode.Worker do
     {:noreply, synced_state}
   end
 
-  defp reset_state(%State{} = state) do
-    %State{
-      state
-      | blocks: [Block.origin()],
-        accounts: Chain.empty_accounts()
-    }
-  end
-
   def handle_cast({:add_block, %Block{} = new_block}, %State{listener: listener} = state) do
     Logger.info("Adding new block")
 
@@ -178,6 +193,9 @@ defmodule ChainNode.Worker do
 
         listener.on_new_block()
         Peer.broadcast_new_block(new_block)
+
+        TransactionPool.remove_transactions(new_block.transactions)
+
         {:noreply, new_state}
 
       {:error, :block_already_added} ->

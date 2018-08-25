@@ -13,7 +13,7 @@ defmodule Miner do
     Logger.info("Starting Miner")
 
     children = [
-      supervisor(ChainNode, [Miner.Worker]),
+      supervisor(ChainNode, [[listener: Worker]]),
       worker(Worker, []),
       {Task.Supervisor, name: Miner.TaskSupervisor}
     ]

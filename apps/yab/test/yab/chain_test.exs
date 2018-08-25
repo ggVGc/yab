@@ -11,6 +11,8 @@ defmodule YAB.ChainTest do
     SignedTransaction
   }
 
+  require Block
+
   test "Candidate with no transactions" do
     {:ok, %Block{}, []} =
       Chain.build_candidate(

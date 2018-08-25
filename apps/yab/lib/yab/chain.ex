@@ -38,10 +38,10 @@ defmodule YAB.Chain do
            [{SignedTransaction.t(), transaction_validation_error()}]}
 
   def apply_transactions(initial_accounts, transactions) do
-    {accounts, invalids, valids} =
+    {accounts, valids, invalids} =
       Enum.reduce(transactions, {initial_accounts, [], []}, fn %SignedTransaction{} = transaction,
                                                                {accounts, valids, invalids} ->
-        case validate_single_transaction(transaction, accounts) do
+        case validate_single_transaction(accounts, transaction) do
           {:ok, new_accounts} ->
             {new_accounts, [transaction | valids], invalids}
 
@@ -106,12 +106,11 @@ defmodule YAB.Chain do
         accounts,
         %Block{
           transactions: transactions,
-          header:
-            %BlockHeader{
-              previous_hash: previous_hash,
-              chain_root_hash: chain_root_hash,
-              transactions_root_hash: transactions_root_hash
-            } = header
+          header: %BlockHeader{
+            previous_hash: previous_hash,
+            chain_root_hash: chain_root_hash,
+            transactions_root_hash: transactions_root_hash
+          }
         } = block
       ) do
     latest_block_hash = hash(pack(latest_header))
@@ -153,6 +152,7 @@ defmodule YAB.Chain do
 
   @spec validate_coinbase_transaction(SignedTransaction.t()) ::
           {:ok, %{miner: account_key(), reward: integer()}}
+          | {:error, :invalid_coinbase_transaction}
   defp validate_coinbase_transaction(%SignedTransaction{
          signature: empty_hash(),
          transaction: %{
@@ -171,10 +171,10 @@ defmodule YAB.Chain do
   @spec validate_single_transaction(account_balances(), SignedTransaction.t()) ::
           {:ok, account_balances()}
           | {:error, transaction_validation_error()}
-  defp validate_single_transaction(%SignedTransaction{} = signed_transaction, accounts) do
-    with :ok <- validate_transaction_signature(signed_transaction),
-         {:ok, new_accounts} <-
-           apply_transaction_to_accounts(accounts, signed_transaction.transaction) do
+  defp validate_single_transaction(accounts, %SignedTransaction{} = signed_transaction) do
+    with {:ok, new_accounts} <-
+           apply_transaction_to_accounts(accounts, signed_transaction.transaction),
+         :ok <- validate_transaction_signature(signed_transaction) do
       {:ok, new_accounts}
     else
       {:error, _} = error ->
@@ -228,7 +228,7 @@ defmodule YAB.Chain do
     pack(unpack(original_value) + add_amount)
   end
 
-  @spec validate_transaction_signature(Transaction.t()) ::
+  @spec validate_transaction_signature(SignedTransaction.t()) ::
           :ok | {:error, :invalid_transaction_signature}
   defp validate_transaction_signature(transaction) do
     if SignedTransaction.signature_valid?(transaction) do

@@ -26,4 +26,8 @@ defmodule ChainNode do
 
     Supervisor.init(children, strategy: :one_for_one)
   end
+
+  def set_log_level(level) do
+    Logger.configure(level: level)
+  end
 end

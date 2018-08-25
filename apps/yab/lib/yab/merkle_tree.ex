@@ -9,6 +9,11 @@ defmodule YAB.MerkleTree do
   end
 
   @spec lookup(__MODULE__.t(), key()) :: nil | value()
+
+  def lookup(_, nil) do
+    nil
+  end
+
   def lookup(tree, key) do
     case :gb_merkle_trees.lookup(key, tree) do
       :none -> nil
@@ -38,5 +43,10 @@ defmodule YAB.MerkleTree do
   @spec root_hash(__MODULE__.t()) :: binary()
   def root_hash(tree) do
     :gb_merkle_trees.root_hash(tree)
+  end
+
+  @spec to_list(__MODULE__.t()) :: [{key(), value()}]
+  def to_list(tree) do
+    :gb_merkle_trees.foldr(&[&1 | &2], [], tree)
   end
 end

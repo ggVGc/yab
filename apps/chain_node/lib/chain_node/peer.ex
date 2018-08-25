@@ -1,11 +1,13 @@
 defmodule ChainNode.Peer do
   alias ChainNode.{
     NodeList,
-    Worker
+    Worker,
+    TransactionPool
   }
 
   alias YAB.{
-    Block
+    Block,
+    SignedTransaction
   }
 
   require Logger
@@ -24,6 +26,11 @@ defmodule ChainNode.Peer do
   def broadcast_new_block(%Block{} = block) do
     Logger.debug("(#{Node.self()}) Broadcasting new block")
     broadcast(Worker, :add_block, [block])
+  end
+
+  def broadcast_transaction(%SignedTransaction{} = transaction) do
+    Logger.debug("(#{Node.self()}) Broadcasting new transaction #{inspect(transaction)}")
+    broadcast(TransactionPool, :add_transaction, [transaction])
   end
 
   def broadcast_added_node(new_node_name) do

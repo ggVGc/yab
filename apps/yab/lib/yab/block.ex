@@ -43,12 +43,13 @@ defmodule YAB.Block do
   end
 
   def set_transactions(%__MODULE__{header: header} = block, transactions) do
-    %__MODULE__{
-      transactions: transactions,
-      header: %BlockHeader{
-        header
-        | transactions_root_hash: Chain.hash_transactions(transactions)
-      }
+    %{
+      block
+      | transactions: transactions,
+        header: %BlockHeader{
+          header
+          | transactions_root_hash: Chain.hash_transactions(transactions)
+        }
     }
   end
 
