@@ -8,7 +8,7 @@ Proof of concept blockchain network.
 * Keeps full chain in memory with no persistence.
 * Coinbase transaction has to be first transaction in block
 * Aggressively throws away transactions
-* No real identity for transasctions(no timestamp), so one transasction could be incorrecetly applied multiple times
+* No real identity for transactions(no timestamp), so one transaction could be incorrectly applied multiple times
 
 
 
